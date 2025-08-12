@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Visor Firebase</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <!-- Firebase SDK v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; padding:16px; }
+    nav { margin-bottom: 20px; }
+    nav button { margin-right: 10px; padding: 6px 12px; cursor:pointer; }
+    table { width:100%; border-collapse: collapse; margin-bottom:16px; display:none; }
+    th, td { border:1px solid #ccc; padding:8px; text-align:left; }
+    th { background: #f0f0f0; }
+    h2 { margin-top:24px; }
+  </style>
+</head>
+<body>
+
+  <h1>Datos desde Firebase</h1>
+
+  <nav>
+    <button onclick="mostrarTabla('tblLlamadas')">📞 Llamadas</button>
+    <button onclick="mostrarTabla('tblUbicaciones')">📍 Ubicaciones</button>
+    <button onclick="mostrarTabla('tblSms')">💬 SMS</button>
+  </nav>
+
+  <table id="tblLlamadas">
+    <thead><tr><th>Día</th><th>Número</th><th>Tipo</th><th>Hora</th><th>Duración (s)</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <table id="tblUbicaciones">
+    <thead><tr><th>Día</th><th>Dirección</th><th>Hora</th><th>Lat</th><th>Lng</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <table id="tblSms">
+    <thead><tr><th>Día</th><th>Hora</th><th>Número</th><th>Mensaje</th><th>Tipo</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    // Configuración Firebase
+    var firebaseConfig = {
+      apiKey: "AIzaSyA97VIBE9xTSkwapNfsJA-K7Uhq9DsH2S4",
+      authDomain: "llamadatzitzinti.firebaseapp.com",
+      databaseURL: "https://llamadatzitzinti-default-rtdb.firebaseio.com",
+      projectId: "llamadatzitzinti",
+      storageBucket: "llamadatzitzinti.appspot.com",
+      messagingSenderId: "768165690226",
+      appId: "1:768165690226:web:XXXXXXXXXXXXXX"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    // Autenticación anónima (opcional si solo lees)
+    firebase.auth().signInAnonymously().catch(console.error);
+
+    var dbRef = firebase.database().ref("/");
+
+    dbRef.on("value", function(snapshot) {
+      var data = snapshot.val() || {};
+
+      // Limpiar tablas
+      $("#tblLlamadas tbody, #tblUbicaciones tbody, #tblSms tbody").empty();
+
+      // ---- Llamadas ----
+      if (data.llamadas) {
+        let llamadasArray = [];
+        Object.entries(data.llamadas).forEach(([dia, llamadas]) => {
+          Object.values(llamadas).forEach(ll => llamadasArray.push({ dia, ...ll }));
+        });
+        llamadasArray.sort((a, b) => (b.hora || "").localeCompare(a.hora || "")); // Más recientes primero
+        llamadasArray.forEach(ll =>
+          $("#tblLlamadas tbody").append(
+            `<tr>
+              <td>${ll.dia}</td><td>${ll.numero}</td><td>${ll.tipo}</td><td>${ll.hora || "-"}</td><td>${ll.duracion_segundos || ll.duracion || "-"}</td>
+            </tr>`
+          )
+        );
+      }
+
+      // ---- Ubicaciones ----
+      if (data.ubicaciones) {
+        let ubicArray = [];
+        Object.entries(data.ubicaciones).forEach(([dia, locs]) => {
+          Object.values(locs).forEach(loc => ubicArray.push({ dia, ...loc }));
+        });
+        ubicArray.sort((a, b) => (b.hora || "").localeCompare(a.hora || ""));
+        ubicArray.forEach(loc =>
+          $("#tblUbicaciones tbody").append(
+            `<tr>
+              <td>${loc.dia}</td><td>${loc.direccion}</td><td>${loc.hora}</td><td>${loc.lat}</td><td>${loc.lng}</td>
+            </tr>`
+          )
+        );
+      }
+
+      // ---- SMS ----
+      if (data.mensajes_sms || data.sms) {
+        const smsKey = data.mensajes_sms ? "mensajes_sms" : "sms";
+        let smsArray = [];
+        Object.entries(data[smsKey]).forEach(([dia, smsSet]) => {
+          Object.values(smsSet).forEach(sms => smsArray.push({ dia, ...sms }));
+        });
+        smsArray.sort((a, b) => (b.hora || "").localeCompare(a.hora || ""));
+        smsArray.forEach(sms =>
+          $("#tblSms tbody").append(
+            `<tr>
+              <td>${sms.dia}</td><td>${sms.hora}</td><td>${sms.numero}</td><td>${sms.mensaje}</td><td>${sms.tipo}</td>
+            </tr>`
+          )
+        );
+      }
+    });
+
+    // Función para mostrar tablas
+    function mostrarTabla(id) {
+      $("table").hide();
+      $("#" + id).show();
+    }
+
+    // Mostrar por defecto llamadas
+    mostrarTabla('tblLlamadas');
+  </script>
+
+</body>
+</html>
